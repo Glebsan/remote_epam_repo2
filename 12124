@@ -1,0 +1,183 @@
+USE CDP_DB
+/*
+1.	Выбрать всех студентов из таблицы STUDENT учащихся в 101, 105 и 106 группах
+(одна команда SELECT с несколькими условиями,
+SELECT c одним условием,
+три SELECT с одним условием в каждом и объединением результатов через UNION).
+3 sql-команды.
+*/
+
+SELECT *
+FROM STUDENT
+WHERE ID_GROUP = 101 OR ID_GROUP = 105 OR ID_GROUP = 106;
+
+
+SELECT *
+FROM STUDENT
+WHERE ID_GROUP IN (101, 105, 106);
+
+
+SELECT *
+FROM STUDENT
+WHERE ID_GROUP = 101
+UNION
+SELECT *
+FROM STUDENT
+WHERE ID_GROUP = 105
+UNION
+SELECT *
+FROM STUDENT
+WHERE ID_GROUP = 106
+
+
+/*
+2.	*Выбрать всех студентов с предпоследней буквой О в имени и их дни рождения в указанном формате (см. картинку) из таблицы STUDENT
+(функция CONVERT() в MSSQL, команда SELECT c условием, псевдоним столбца). 1 sql-команда.
+*/
+
+SELECT STNAME, CONVERT(nvarchar, BIRTHDAY, 106) as Дата
+FROM STUDENT
+WHERE STNAME LIKE '%O_'
+
+/*
+3.	Выбрать всех студентов из таблицы STUDENT не получающих премию  (BONUS)
+и родившихся после первого января 1988 (команда SELECT с условием анализа на NULL-значение). 1 sql-команда.
+*/
+
+SELECT *
+FROM STUDENT
+WHERE BONUS IS NULL AND BIRTHDAY > '1988-01-01'
+
+/*
+4.	*Максимальная стипендия 5000. Показать студентов из таблицы STUDENT,
+учащихся в группе 102 и их стипендию как процент от максимальной возможной стипендии
+(команда SELECT с условием, выражениями, оператор склейки строк – «+» для MSSQL). 1 sql-команда.
+*/
+
+SELECT STNAME, CAST(CAST((BURSARY/5000*100) as int) as char) + '%' as BURSARY_PCT
+FROM STUDENT
+WHERE ID_GROUP = 102
+
+/*
+5.	Показать студентов и их стипендию из таблицы STUDENT, которые родились  до 23.04.1984.
+Отсортировать результаты по группе и имени (команда SELECT с условиями, сортировки) . 1 sql-команда. 
+*/
+
+SELECT  ID_GROUP, STNAME, BURSARY
+FROM STUDENT
+WHERE BIRTHDAY < '1984-04-23'
+ORDER BY ID_GROUP, STNAME;
+
+/*
+6.	Показать имена преподавателей  из таблицы TEACHER,
+и преподаваемый ими предмет и его длительность из таблицы SUBJECT (простой JOIN). 1 sql-команда.
+*/
+
+SELECT TNAME, SNAME, DURATION
+FROM TEACHER as thr
+JOIN SUBJECT as sub
+ON thr.ID_SUBJECT = sub.ID_SUBJECT
+
+/*
+7.	Показать названия групп из таблицы UGROUP, названия университетов этих групп из таблицы UNIVERSITY
+и город из таблицы CITY, в котором находиться этот университет. (Несколько простых JOINs). 1 sql-команда.
+*/
+
+SELECT ug.GNAME, un.UNAME, ct.CNAME
+FROM UGROUP as ug
+JOIN UNIVERSITY as un
+ON ug.ID_UNIVERSITY = un.ID_UNIVERSITY
+JOIN CITY as ct
+ON un.ID_CITY = ct.ID_CITY
+
+/*
+8.	Выбрать студентов и их средний балл из таблицы STUDENT, 
+их группу из таблицы  UGROUP, их город из таблицы CITY, 
+отфильтровать только тех студентов, где средний балл не превышает 6.2 
+(Команда SELECT с условием, Несколько JOINs). 1 sql-команда.
+*/
+
+SELECT st.STNAME, st.AVERAGEMARK, ug.GNAME, ct.CNAME
+FROM 
+(SELECT STNAME,ID_GROUP, AVERAGEMARK, ID_CITY --тут я сначала фильтрую по averagemark, что бы дальнейшие манипуляции не затрагивали всю таблицу
+   FROM STUDENT
+  WHERE AVERAGEMARK <= 6.2) as st
+JOIN UGROUP as ug
+ON st.ID_GROUP = ug.ID_GROUP
+JOIN CITY as ct
+ON st.ID_CITY = ct.ID_CITY
+
+SELECT st.STNAME, st.AVERAGEMARK, ug.GNAME, ct.CNAME
+FROM STUDENT as st
+JOIN UGROUP as ug
+ON st.ID_GROUP = ug.ID_GROUP
+JOIN CITY as ct
+ON st.ID_CITY = ct.ID_CITY
+WHERE st.AVERAGEMARK <= 6.2
+/*
+9.	 Выбрать студентов из таблицы STUDENT, их университет из таблицы  UNIVERSITY,
+их город из таблицы CITY, отфильтровать только тех студентов,
+в  чьем городе население не больше 340000 и название группы содержит строчку «Uni»
+(Команда SELECT с условиями, Несколько JOINs) . 1 sql-команда
+*/
+
+SELECT st.STNAME,  un.UNAME, ct.CNAME
+  FROM 
+(SELECT STNAME, ID_GROUP, ID_CITY
+   FROM STUDENT
+  WHERE ID_GROUP IN ( SELECT ID_GROUP 
+                        FROM UGROUP 
+					   WHERE GNAME LIKE '%Uni%')
+) as st
+JOIN 
+(SELECT ID_CITY, CNAME, POPULATION
+   FROM CITY
+  WHERE POPULATION <= 340000
+) as ct 
+ON st.ID_CITY = ct.ID_CITY
+JOIN UNIVERSITY as un
+ON un.ID_CITY = ct.ID_CITY
+
+
+/*
+10.	Выбрать всю информацию из таблицы TEACHER, заработную плату преподавателей из таблицы UNITEACHER и название университета,
+в котором они ее получают, из таблицы  UNIVERSITY, отфильтровать только тех преподавателей, чья заработная плата не менее 750. 
+(символ “*” для указанной таблицы, команда SELECT с условием, Несколько простых JOINs) . 1 sql-команда
+*/
+
+SELECT thr.*, uthr.WAGE, un.UNAME  --есть смысл писать из каких таблиц приходят столбцы? 'uthr.','un.' и т.п. или писать без ссылки на таблицы?
+FROM TEACHER as thr
+JOIN
+(SELECT ID_TEACHER, WAGE, ID_UNIVERSITY
+   FROM UNITEACHER
+  WHERE WAGE >= 750
+) as uthr
+ON uthr.ID_TEACHER = thr.ID_TEACHER
+JOIN
+(SELECT ID_UNIVERSITY, UNAME
+   FROM UNIVERSITY
+) as un
+ON un.ID_UNIVERSITY = uthr.ID_UNIVERSITY
+
+
+/*
+11.	Выбрать преподавателей из таблицы TEACHER, их заработную плату из таблицы UNITEACHER,
+их предмет из таблицы SUBJECT и группы, в которых они его читают, из таблицы UGROUP,
+показать только группы из городов Минска и Гродно (Minsk, Grodno), не показывать предмет английский (English).
+Отсортировать по названию предмета, зарплате и по номеру группы.
+(Команда SELECT с условиями, Несколько простых JOINs) 1 sql-команда
+*/
+
+SELECT thr.TNAME, uthr.WAGE, sub.SNAME, ugrp.GNAME, ct.CNAME
+FROM TEACHER as thr
+JOIN UNITEACHER as uthr
+ON uthr.ID_TEACHER = thr.ID_TEACHER
+JOIN SUBJECT as sub
+ON sub.ID_SUBJECT = thr.ID_SUBJECT
+JOIN UNIVERSITY as un
+ON un.ID_UNIVERSITY = uthr.ID_UNIVERSITY
+JOIN UGROUP as ugrp
+ON ugrp.ID_UNIVERSITY = un.ID_UNIVERSITY
+JOIN CITY as ct
+ON ct.ID_CITY = un.ID_CITY
+WHERE ct.CNAME IN ('Minsk', 'Grodno') AND sub.SNAME NOT LIKE 'English'
